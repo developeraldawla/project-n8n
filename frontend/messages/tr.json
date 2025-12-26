@@ -1,0 +1,19 @@
+{
+    "HomePage": {
+        "title": "Yapay Zeka Araçlarının Gücünü Ortaya Çıkarın",
+        "subtitle": "Üretkenliğinizi artırmak için tasarlanmış premium AI araçlarına erişin.",
+        "cta": "Ücretsiz Deneme Başlat"
+    },
+    "Auth": {
+        "login": "Giriş Yap",
+        "signup": "Kayıt Ol",
+        "email": "E-posta",
+        "password": "Şifre",
+        "submit": "Gönder"
+    },
+    "Dashboard": {
+        "title": "Panel",
+        "tools": "Araçlar",
+        "usage": "Kullanım"
+    }
+}

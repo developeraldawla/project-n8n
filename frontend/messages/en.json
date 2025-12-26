@@ -1,0 +1,19 @@
+{
+    "HomePage": {
+        "title": "Unleash the Power of AI Tools",
+        "subtitle": "Access a suite of premium AI utilities designed to boost your productivity.",
+        "cta": "Start Free Trial"
+    },
+    "Auth": {
+        "login": "Login",
+        "signup": "Sign Up",
+        "email": "Email",
+        "password": "Password",
+        "submit": "Submit"
+    },
+    "Dashboard": {
+        "title": "Dashboard",
+        "tools": "Tools",
+        "usage": "Usage"
+    }
+}

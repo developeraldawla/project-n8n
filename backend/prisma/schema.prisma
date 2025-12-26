@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
+enum ToolStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+  MAINTENANCE
+}
+
+enum ExecutionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  TIMED_OUT
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  passwordHash     String?
+  role             Role              @default(USER)
+  googleId         String?
+  stripeCustomerId String?
+  planId           String?
+  plan             Plan?             @relation(fields: [planId], references: [id])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  subscription     Subscription?
+  executions       ExecutionLog[]
+  auditLogs        AuditLog[]
+  usageAggregates  UsageAggregate[]
+  fileAssets       FileAsset[]
+  notifications    Notification[]
+}
+
+model Plan {
+  id                   String            @id @default(uuid())
+  name                 String
+  slug                 String            @unique // e.g., "pro-monthly"
+  stripePriceId        String?
+  priceMonthly         Decimal           @default(0.00)
+  priceYearly          Decimal?
+  currency             String            @default("usd")
+  
+  // Feature Flags & Limits
+  features             Json              // { "bulk_export": true, "api_access": false }
+  limits               Json              // { "tools_daily": 100, "storage_gb": 10 }
+  isTrialEnabled       Boolean           @default(false)
+  trialDays            Int               @default(0)
+  
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  
+  users                User[]
+  toolAccess           ToolAccess[]
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id])
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  trialEnd             DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model Tool {
+  id          String        @id @default(uuid())
+  slug        String        @unique
+  name        String
+  description Json?         // { en: "...", tr: "..." }
+  category    String
+  imageUrl    String?
+  status      ToolStatus    @default(DRAFT)
+  currentVersion Int        @default(1)
+  
+  versions    ToolVersion[]
+  accessRules ToolAccess?
+  executions  ExecutionLog[]
+  usageAggregates UsageAggregate[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model ToolVersion {
+  id           String   @id @default(uuid())
+  toolId       String
+  tool         Tool     @relation(fields: [toolId], references: [id])
+  versionNumber Int
+  inputSchema  Json     // JSON Schema for UI
+  outputSchema Json     // Definition on how to render output
+  webhookUrl   String   // n8n URL
+  isPublished  Boolean  @default(false)
+  
+  createdAt    DateTime @default(now())
+  
+  @@unique([toolId, versionNumber])
+  executions ExecutionLog[]
+}
+
+model ToolAccess {
+  id           String   @id @default(uuid())
+  toolId       String   @unique
+  tool         Tool     @relation(fields: [toolId], references: [id])
+  planId       String
+  plan         Plan     @relation(fields: [planId], references: [id])
+  isHidden     Boolean  @default(false)
+  customLimits Json?    // Override Plan limits for this tool { "daily": 50 }
+  
+  @@unique([toolId, planId])
+}
+
+model ExecutionLog {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  toolId        String
+  tool          Tool            @relation(fields: [toolId], references: [id])
+  toolVersionId String?
+  toolVersion   ToolVersion?    @relation(fields: [toolVersionId], references: [id])
+  
+  status        ExecutionStatus
+  durationMs    Int?
+  inputSnapshot Json
+  outputSnapshot Json?
+  errorDetails  String?
+  
+  createdAt     DateTime        @default(now())
+}
+
+model FileAsset {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  storageKey  String
+  url         String
+  mimeType    String
+  sizeBytes   Int
+  expiresAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+}
+
+model UsageAggregate {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  toolId       String
+  tool         Tool     @relation(fields: [toolId], references: [id])
+  date         DateTime @db.Date // YYYY-MM-DD
+  count        Int      @default(0)
+  successCount Int      @default(0)
+  failureCount Int      @default(0)
+  
+  @@unique([userId, toolId, date])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  admin        User     @relation(fields: [adminId], references: [id])
+  action       String
+  targetEntity String
+  details      Json?
+  ipAddress    String?
+  
+  createdAt    DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // INFO, WARNING, ERROR, SUCCESS
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model LandingContent {
+  id        String   @id @default(uuid())
+  sectionKey String  @unique // "hero", "pricing"
+  content   Json
+  language  String   @default("en")
+  updatedAt DateTime @updatedAt
+}
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
